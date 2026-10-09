@@ -6,12 +6,9 @@ on:
 jobs:
     verify-build:
         runs-on: windows-latest
-        defaults:
-            run:
-                shell: bash
         permissions:
             contents: write
-            
+
         steps:
             - name: checkout current repo
               uses: actions/checkout@v7
@@ -19,9 +16,6 @@ jobs:
             - name: initial configuration
               run: |
                 pip install scons
-            
-            - name: setting up cache
-              uses: mozilla-actions/sccache-action@v0.0.11
 
             - name: set NugetSource
               run: |
@@ -30,6 +24,9 @@ jobs:
                 
                 dotnet nuget add source $target_dir --name LocalNugetSource
             
+            - name: setting up cache
+              uses: mozilla-actions/sccache-action@v0.0.11
+
             - name: build editor binaries
               env: 
                 SCCACHE_GHA_ENABLED: "true"
