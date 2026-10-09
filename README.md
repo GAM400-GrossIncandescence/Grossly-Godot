@@ -1,4 +1,4 @@
-# Godot Engine - Grossly
+# Godot Engine - Gross Version
 
 <p align="center">
   <a href="https://godotengine.org">
