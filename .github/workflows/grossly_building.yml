@@ -58,7 +58,7 @@ jobs:
               run: |
                 $source_path = Join-Path $env:LOCALAPPDATA "LocalNugetSource"
                 $target_path = Join-Path $env:GITHUB_WORKSPACE "Release"
-                $zip_path = Join-Path $env:GITHUB_WORKSPACE "Release.zip"
+                $zip_path = Join-Path $env:GITHUB_WORKSPACE "Grossly-Godot-Release.zip"
                 
                 New-Item -ItemType Directory -Force -Path $target_path | Out-Null
 
