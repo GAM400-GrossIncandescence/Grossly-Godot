@@ -72,6 +72,4 @@ jobs:
               env:
                 GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                gh release create "grossly-godot-${{ github.run_number}}" "$env:GITHUB_WORKSPACE\Grossly-Godot-Release.zip" |
-                -t "Grossly Godot Release" |
-                -n "The latest release of Grossly Godot ✦"
+                gh release create "grossly-godot-${{ github.run_number}}" "$env:GITHUB_WORKSPACE\Grossly-Godot-Release.zip"
