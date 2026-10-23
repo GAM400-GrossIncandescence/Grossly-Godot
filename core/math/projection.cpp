@@ -113,6 +113,46 @@ Projection Projection::create_light_atlas_rect(const Rect2 &p_rect) {
 	proj.set_light_atlas_rect(p_rect);
 	return proj;
 }
+void Projection::set_oblique(Vector4 p_oblique_plane, real_t p_fovy_degrees, real_t p_aspect, real_t p_z_near, real_t p_z_far, bool p_flip_fov) {
+	if (p_flip_fov) {
+		p_fovy_degrees = get_fovy(p_fovy_degrees, 1.0 / p_aspect);
+	}
+
+	real_t sine, cotangent, deltaZ;
+	real_t radians = Math::deg_to_rad(p_fovy_degrees / 2.0);
+
+	deltaZ = p_z_far - p_z_near;
+	sine = Math::sin(radians);
+
+	if ((deltaZ == 0) || (sine == 0) || (p_aspect == 0)) {
+		return;
+	}
+	cotangent = Math::cos(radians) / sine;
+
+	set_identity();
+
+	columns[0][0] = cotangent / p_aspect;
+	columns[1][1] = cotangent;
+	columns[2][2] = -(p_z_far + p_z_near) / deltaZ;
+	columns[2][3] = -1;
+	columns[3][2] = -2 * p_z_near * p_z_far / deltaZ;
+	columns[3][3] = 0;
+
+	Vector4 q;
+	real_t *matrix = (real_t *)columns;
+
+	q.x = (sgn_non_zero(p_oblique_plane.x) + matrix[8]) / matrix[0];
+	q.y = (sgn_non_zero(p_oblique_plane.y) + matrix[9]) / matrix[5];
+	q.z = -1.0f;
+	q.w = (1.0f + matrix[10]) / matrix[14];
+
+	Vector4 c = p_oblique_plane * (2.0f / (p_oblique_plane.dot(q)));
+
+	matrix[2] = c.x;
+	matrix[6] = c.y;
+	matrix[10] = c.z + 1.0f;
+	matrix[14] = c.w;
+}
 
 Projection Projection::create_perspective(real_t p_fovy_degrees, real_t p_aspect, real_t p_z_near, real_t p_z_far, bool p_flip_fov) {
 	Projection proj;
@@ -131,7 +171,11 @@ Projection Projection::create_for_hmd(int p_eye, real_t p_aspect, real_t p_intra
 	proj.set_for_hmd(p_eye, p_aspect, p_intraocular_dist, p_display_width, p_display_to_lens, p_oversample, p_z_near, p_z_far);
 	return proj;
 }
-
+Projection Projection::create_oblique(Vector4 p_oblique_plane, real_t p_fovy_degrees, real_t p_aspect, real_t p_z_near, real_t p_z_far, bool p_flip_fov) {
+	Projection proj;
+	proj.set_oblique(p_oblique_plane, p_fovy_degrees, p_aspect, p_z_near, p_z_far, p_flip_fov);
+	return proj;
+}
 Projection Projection::create_orthogonal(real_t p_left, real_t p_right, real_t p_bottom, real_t p_top, real_t p_znear, real_t p_zfar) {
 	Projection proj;
 	proj.set_orthogonal(p_left, p_right, p_bottom, p_top, p_znear, p_zfar);
@@ -243,7 +287,7 @@ Projection Projection::flipped_y() const {
 	return proj;
 }
 
-Projection Projection ::jitter_offseted(const Vector2 &p_offset) const {
+Projection Projection::jitter_offseted(const Vector2 &p_offset) const {
 	Projection proj = *this;
 	proj.add_jitter_offset(p_offset);
 	return proj;

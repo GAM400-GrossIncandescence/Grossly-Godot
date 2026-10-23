@@ -36,6 +36,7 @@ namespace InterpolatedPropertyFuncs {
 float lerp(float p_a, float p_b, float p_fraction);
 double lerp(double p_a, double p_b, float p_fraction);
 Vector2 lerp(const Vector2 &p_a, const Vector2 &p_b, float p_fraction);
+Vector4 lerp(const Vector4 &p_a, const Vector4 &p_b, float p_fraction);
 } //namespace InterpolatedPropertyFuncs
 
 // This class is intended to reduce the boiler plate involved to

@@ -114,7 +114,15 @@ void RendererSceneCull::camera_set_frustum(RID p_camera, float p_size, Vector2 p
 	camera->znear = p_z_near;
 	camera->zfar = p_z_far;
 }
-
+void RendererSceneCull::camera_set_oblique(RID p_camera, Vector4 p_oblique_plane, float p_fovy_degrees, float p_z_near, float p_z_far) {
+	Camera *camera = camera_owner.get_or_null(p_camera);
+	ERR_FAIL_NULL(camera);
+	camera->type = Camera::OBLIQUE;
+	camera->oblique_plane = p_oblique_plane;
+	camera->fov = p_fovy_degrees;
+	camera->znear = p_z_near;
+	camera->zfar = p_z_far;
+}
 void RendererSceneCull::camera_set_transform(RID p_camera, const Transform3D &p_transform) {
 	Camera *camera = camera_owner.get_or_null(p_camera);
 	ERR_FAIL_NULL(camera);

@@ -98,6 +98,8 @@ TEST_CASE("[SceneTree][Camera3D] Getters and setters") {
 		CHECK(test_camera->get_projection() == Camera3D::ProjectionType::PROJECTION_ORTHOGONAL);
 		test_camera->set_projection(Camera3D::ProjectionType::PROJECTION_PERSPECTIVE);
 		CHECK(test_camera->get_projection() == Camera3D::ProjectionType::PROJECTION_PERSPECTIVE);
+		test_camera->set_projection(Camera3D::ProjectionType::PROJECTION_OBLIQUE);
+		CHECK(test_camera->get_projection() == Camera3D::ProjectionType::PROJECTION_OBLIQUE);
 	}
 
 	SUBCASE("Helper setters") {
