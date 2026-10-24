@@ -27,64 +27,69 @@
         };
         llvm = pkgs.llvmPackages_22;
 
+        moltenvk = pkgs.moltenvk;
+
         libPath = with pkgs; [
           dotnet-sdk_8
           dotnet-runtime_8
+          dotnetPackages.Nuget
           libffi
-          spirv-tools
-          vulkan-volk
-          vulkan-tools
-          vulkan-loader
+
           vulkan-headers
+          vulkan-loader
           vulkan-validation-layers
+          vulkan-tools
+
+          moltenvk
+          moltenvk.dev
+
           freetype
           openssl
           fontconfig.lib
           libxkbcommon
-          darwin.moltenvk
-          darwin.moltenvk.dev
           zlib
           zlib.dev
         ];
       in
       {
-        packages.default = pkgs.callPackage ./godot-mono.nix { };
-
         devShells = {
           default = pkgs.mkShell.override { stdenv = llvm.stdenv; } {
             name = "grossly godot";
-            packages = with pkgs; [
-              pkgs.sccache
-              python3
-              unzip
-              scons
-              llvm.llvm
-              llvm.clang
-              llvm.lld
-              llvm.libcxxClang
-              llvm.clangUseLLVM
-            ];
+            packages = libPath;
 
-            buildInputs =
+            nativeBuildInputs =
               with pkgs;
               [
+                pkgs.sccache
                 pkg-config
+                python3
+                unzip
+                scons
+                llvm.llvm
+                llvm.clang
+                llvm.lld
+                llvm.libcxxClang
+                llvm.clangUseLLVM
               ]
-              ++ libPath
-              # Modern unified SDK implementation
-              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
-                pkgs.apple-sdk
-              ];
+              ++ libPath;
 
-            env = {
+            buildInputs = libPath ++ [
+              pkgs.zlib
+              pkgs.yasm
+              moltenvk
+              moltenvk.dev
+            ];
+
+            env = rec {
               LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libPath}";
-              DYLD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libPath}";
+              DYLD_LIBRARY_PATH = LD_LIBRARY_PATH;
+              VULKAN_SDK = "${pkgs.vulkan-loader}";
               VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
-              VULKAN_SDK = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+              VK_ICD_FILENAMES = "${pkgs.moltenvk}/share/vulkan/icd.d/vk_icd_moltenvk.json";
             };
 
             shellHook = ''
-              # export NIX_LDFLAGS="-L${pkgs.zlib}/lib $NIX_LDFLAGS"
+              export NIX_LDFLAGS="-L${pkgs.zlib}/lib $NIX_LDFLAGS"
               export NIX_CFLAGS_COMPILE="-I${pkgs.zlib.dev}/include -isysroot ${pkgs.apple-sdk.sdkroot} $NIX_CFLAGS_COMPILE"
             '';
           };

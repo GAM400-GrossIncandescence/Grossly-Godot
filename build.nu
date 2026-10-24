@@ -1,9 +1,8 @@
 #!/usr/bin/env nu
 
-def main [] {
+def "main scons" [...args: string ] {
+    let platform = if (uname | get "kernel-name") == "Darwin" { "macos"} else { "linux" };
     let custom_compiler = "sccache";
-    let platform = "macos";
-    let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
 
     let nix_cc = $env.CC? | default "clang"
     let nix_cxx = $env.CXX? | default "clang++"
@@ -16,6 +15,8 @@ def main [] {
         "use_llvm=yes"
         "accesskit=no"
         "angle=no"
+		"vulkan=yes"
+		$"vulkan_sdk_path=($env.VULKAN_SDK)"
 		# "verbose=yes"
         $"c_compiler_launcher=($custom_compiler)"
         $"cpp_compiler_launcher=($custom_compiler)"
@@ -25,30 +26,49 @@ def main [] {
         $"-j(nproc)"
     ]
 
-    print "Executing clean SCons Godot engine build sequence..."
+	scons ...$base_flags ...$args
 
-    with-env {
-        ENV: {
-            PATH: $env.PATH,
-            NIX_LDFLAGS: $raw_ldflags,
-			CC: $nix_cc,
-			CXX: $nix_cxx,
-            NIX_CFLAGS_COMPILE: ($env.NIX_CFLAGS_COMPILE? | default "")
-			LD_LIBRARY_PATH: $env.LD_LIBRARY_PATH,
-			DYLD_LIBRARY_PATH: $env.DYLD_LIBRARY_PATH,
-        }
-    } {
-        scons ...$base_flags target=editor
+	return
+}
 
-		alias godot = ./bin/godot.macos.editor.arm64.mono;
 
-		godot --headless --generate-mono-glue modules/mono/glue
+def "main godot" [...args: string] {
+	./bin/godot.macos.editor.arm64.mono ...$args
+	return
+}
 
-		python3 ./modules/mono/build_scripts/build_assemblies.py --godot-output-dir=./bin --godot-platform=$platform --push-nupkgs-local ($local_package_dir)
+def "main generate_mono_glue" [] {
+    let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
 
-		scons platform=macos arch=arm64 generate_bundle=yes
+	print "Generating mono glue . . ."
+	main godot "--headless" "--generate-mono-glue" "modules/mono/glue"
 
-		scons platform=macos target=template_debug arch=arm64
-		scons platform=macos target=template_release arch=arm64
-    }
+	print "Generating mono assemblies . . ."
+	python3 ./modules/mono/build_scripts/build_assemblies.py --godot-output-dir=./bin --godot-platform=$platform --push-nupkgs-local ($local_package_dir)
+	return
+}
+
+
+def "main editor" [] {
+	print "Building editor . .  ."
+
+	main scons "target=editor" "tools=yes"
+
+	main generate_mono_glue
+
+	main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
+	return
+}
+
+
+def "main export_templates" [] {
+	main scons "target=template_debug"
+	main scons "target=template_release"
+	return
+}
+
+def main [] {
+	main editor
+	print
+
 }
