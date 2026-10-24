@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    sccache = {
+      url = "github:mozilla/sccache";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -11,52 +15,54 @@
       self,
       nixpkgs,
       flake-utils,
+      sccache,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
-        llvm = pkgs.llvmPackages_19;
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ sccache.overlays.default ];
+        };
+        llvm = pkgs.llvmPackages_22;
 
-        runtimeLibs =
-          with pkgs;
-          (pkgs.lib.options pkgs.stdenv.isDarwin [
-            # xorg.libX11
-            # xorg.libXcursor
-            # xorg.libXinerama
-            # xorg.libXrandr
-            # xorg.libXi
-            # xorg.libXext
-            # libGL
-            # alsa-lib
-            # libpulseaudio
-            # wayland
-            # systemd
-            # dbus
-            # fontconfig
-            # freetype
-            # zlib
-            # stdenv.cc.cc.lib
-            # libxkbcommon
-          ])
-          ++ pkgs.lib.optionals mono [
-            dotnet-sdk_8
-            dotnet-runtime_8
-          ];
+        libPath = with pkgs; [
+          dotnet-sdk_8
+          dotnet-runtime_8
+          libffi
+          spirv-tools
+          vulkan-volk
+          vulkan-tools
+          vulkan-loader
+          vulkan-headers
+          vulkan-validation-layers
+          freetype
+          openssl
+          fontconfig.lib
+          libxkbcommon
+          darwin.moltenvk
+          darwin.moltenvk.dev
+          zlib
+          zlib.dev
+        ];
       in
       {
+        packages.default = pkgs.callPackage ./godot-mono.nix { };
 
         devShells = {
           default = pkgs.mkShell.override { stdenv = llvm.stdenv; } {
             name = "grossly godot";
             packages = with pkgs; [
+              pkgs.sccache
               python3
-              sccache
-              cmake
-              extra-cmake-modules
               unzip
-              doxygen
+              scons
+              llvm.llvm
+              llvm.clang
+              llvm.lld
+              llvm.libcxxClang
+              llvm.clangUseLLVM
             ];
 
             buildInputs =
@@ -64,7 +70,23 @@
               [
                 pkg-config
               ]
-              ++ runtimeLibs;
+              ++ libPath
+              # Modern unified SDK implementation
+              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+                pkgs.apple-sdk
+              ];
+
+            env = {
+              LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libPath}";
+              DYLD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libPath}";
+              VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+              VULKAN_SDK = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+            };
+
+            shellHook = ''
+              # export NIX_LDFLAGS="-L${pkgs.zlib}/lib $NIX_LDFLAGS"
+              export NIX_CFLAGS_COMPILE="-I${pkgs.zlib.dev}/include -isysroot ${pkgs.apple-sdk.sdkroot} $NIX_CFLAGS_COMPILE"
+            '';
           };
         };
       }

@@ -5,18 +5,10 @@ def main [] {
     let platform = "macos";
     let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
 
-    # 1. Capture the Nix properties
-    let nix_ldflags = $env.NIX_LDFLAGS? | default ""
     let nix_cc = $env.CC? | default "clang"
     let nix_cxx = $env.CXX? | default "clang++"
+    let raw_ldflags = $env.NIX_LDFLAGS? | default ""
 
-    # 2. Re-clean flags into an escaped list format for Python evaluation
-    let sanitized_flags = ($nix_ldflags | split row " " | to json -r)
-
-    # 3. Create an inline SCons Python command script that safely injects the flags into the running builder context
-    let inline_scons_patch = $"import SCons.Script; env = SCons.Script.DefaultEnvironment\(\); flags = ($sanitized_flags); env.Append\(LINKFLAGS=flags\); env.Append\(ENV=\{'PATH': '($env.PATH)'\}\)"
-
-    # 4. Assemble compile flags matrix
     let base_flags = [
         $"platform=($platform)"
         "arch=arm64"
@@ -24,17 +16,39 @@ def main [] {
         "use_llvm=yes"
         "accesskit=no"
         "angle=no"
-        $"custom_compiler=($custom_compiler)"
+		# "verbose=yes"
+        $"c_compiler_launcher=($custom_compiler)"
+        $"cpp_compiler_launcher=($custom_compiler)"
         $"CC=($nix_cc)"
         $"CXX=($nix_cxx)"
+        $"linkflags=($raw_ldflags)" # Pass directly as a space-separated string block
+        $"-j(nproc)"
     ]
 
-    # 5. Build Targets - passing the inline python snippet execution via -c parameter
-    scons ...$base_flags target=editor -j(nproc) -c ($inline_scons_patch)
-    scons ...$base_flags target=template_debug -j(nproc) -c ($inline_scons_patch)
-    scons ...$base_flags target=template_release -j(nproc) -c ($inline_scons_patch)
+    print "Executing clean SCons Godot engine build sequence..."
 
-    ./bin/godot.macos.editor.arm64.llvm.mono --headless --generate-mono-glue modules/mono/glue
+    with-env {
+        ENV: {
+            PATH: $env.PATH,
+            NIX_LDFLAGS: $raw_ldflags,
+			CC: $nix_cc,
+			CXX: $nix_cxx,
+            NIX_CFLAGS_COMPILE: ($env.NIX_CFLAGS_COMPILE? | default "")
+			LD_LIBRARY_PATH: $env.LD_LIBRARY_PATH,
+			DYLD_LIBRARY_PATH: $env.DYLD_LIBRARY_PATH,
+        }
+    } {
+        scons ...$base_flags target=editor
 
-    python3 ./modules/mono/build_scripts/build_assemblies.py --godot-output-dir=./bin --godot-platform=macos --push-nupkgs-local ($local_package_dir)
+		alias godot = ./bin/godot.macos.editor.arm64.mono;
+
+		godot --headless --generate-mono-glue modules/mono/glue
+
+		python3 ./modules/mono/build_scripts/build_assemblies.py --godot-output-dir=./bin --godot-platform=$platform --push-nupkgs-local ($local_package_dir)
+
+		scons platform=macos arch=arm64 generate_bundle=yes
+
+		scons platform=macos target=template_debug arch=arm64
+		scons platform=macos target=template_release arch=arm64
+    }
 }
