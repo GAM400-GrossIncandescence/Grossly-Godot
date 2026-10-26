@@ -2737,6 +2737,15 @@ void RendererSceneCull::render_camera(const Ref<RenderSceneBuffers> &p_render_bu
 						camera->zfar,
 						camera->vaspect);
 			} break;
+			case Camera::OBLIQUE: {
+				projection.set_oblique(
+						camera->oblique_plane,
+						camera->fov,
+						p_viewport_size.width / (float)p_viewport_size.height,
+						camera->znear,
+						camera->zfar,
+						camera->vaspect);
+			} break;
 		}
 
 		camera_data.set_camera(transform, projection, is_orthogonal, vaspect, jitter, taa_frame_count, camera->visible_layers);
