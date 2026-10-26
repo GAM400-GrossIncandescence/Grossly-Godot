@@ -31,6 +31,7 @@
 #pragma once
 
 struct Vector2;
+struct Vector4;
 
 namespace InterpolatedPropertyFuncs {
 float lerp(float p_a, float p_b, float p_fraction);

@@ -113,6 +113,9 @@ Projection Projection::create_light_atlas_rect(const Rect2 &p_rect) {
 	proj.set_light_atlas_rect(p_rect);
 	return proj;
 }
+inline real_t sgn_non_zero(real_t p_val) {
+	return (p_val < 0.0f) ? -1.0f : 1.0f;
+}
 void Projection::set_oblique(Vector4 p_oblique_plane, real_t p_fovy_degrees, real_t p_aspect, real_t p_z_near, real_t p_z_far, bool p_flip_fov) {
 	if (p_flip_fov) {
 		p_fovy_degrees = get_fovy(p_fovy_degrees, 1.0 / p_aspect);
