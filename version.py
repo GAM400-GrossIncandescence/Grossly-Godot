@@ -1,9 +1,9 @@
 short_name = "godot"
-name = "Godot Engine"
-major = 4
-minor = 7
-patch = 3
-status = "rc"
+name = "Grossly Godot Engine"
+major = 5
+minor = 0
+patch = 0
+status = "incandescent"
 module_config = ""
 website = "https://godotengine.org"
 docs = "4.7"
