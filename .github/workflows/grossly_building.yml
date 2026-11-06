@@ -61,7 +61,7 @@ jobs:
       - name: configuring release zip
         shell: powershell
         run: |
-          $source_path = Join-Path $env:LOCALAPPDATA "LocalNugetSource"
+          $source_path = Join-Path $env:LOCALAPPDATA "LocalNugetSource\*"
           $target_path = Join-Path $env:GITHUB_WORKSPACE "Release"
           $zip_path = Join-Path $env:GITHUB_WORKSPACE "Grossly-Godot-Release.zip"
 
