@@ -17,7 +17,8 @@ from pathlib import Path
 USER_CACHE_PATH = Path.home() / "AppData/Local/SConsCache"
 BASE_ARGS = ["scons",
     "platform=windows",
-    "module_mono_enabled=yes"]
+    "module_mono_enabled=yes",
+    f"cache_path={USER_CACHE_PATH}"]
 GLUE_ARGS = ["./bin/godot.windows.editor.x86_64.llvm.mono",
     "--headless",
     "--generate-mono-glue",
@@ -64,9 +65,7 @@ def main():
                         help="Path to desired Local Nuget Source location.")
     parser.add_argument("--templates",
                         help="Optional flag to build the export templates for Grossly Godot. Defaults to False",
-                        type=bool,
-                        choices=[True, False],
-                        default=False)
+                        action="store_true")
 
     nuget_path = parser.parse_args().nugetpath
     if not nuget_path:
