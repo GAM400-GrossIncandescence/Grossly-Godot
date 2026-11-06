@@ -31,7 +31,6 @@
 #include "interpolated_property.h"
 
 #include "core/math/vector2.h"
-#include "core/math/vector4.h"
 
 namespace InterpolatedPropertyFuncs {
 
@@ -44,9 +43,6 @@ double lerp(double p_a, double p_b, float p_fraction) {
 }
 
 Vector2 lerp(const Vector2 &p_a, const Vector2 &p_b, float p_fraction) {
-	return p_a.lerp(p_b, p_fraction);
-}
-Vector4 lerp(const Vector4 &p_a, const Vector4 &p_b, float p_fraction) {
 	return p_a.lerp(p_b, p_fraction);
 }
 
