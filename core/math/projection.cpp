@@ -149,7 +149,12 @@ void Projection::set_oblique(Vector4 p_oblique_plane, real_t p_fovy_degrees, rea
 	q.z = -1.0f;
 	q.w = (1.0f + matrix[10]) / matrix[14];
 
-	Vector4 c = p_oblique_plane * (2.0f / (p_oblique_plane.dot(q)));
+	real_t denom = p_oblique_plane.dot(q);
+	if (Math::is_zero_approx(denom)) {
+		return;
+	}
+
+	Vector4 c = p_oblique_plane * (2.0f / denom);
 
 	matrix[2] = c.x;
 	matrix[6] = c.y;
