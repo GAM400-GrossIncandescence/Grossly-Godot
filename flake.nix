@@ -37,13 +37,20 @@
             enableStatic = true;
           };
 
-          moltenvkSdk = pkgs.runCommand "godot-moltenvk-sdk" { } ''
-            SDK="$out/macOS/lib/MoltenVK.xcframework/macos-arm64_x86_64"
+          moltenvkDynamic = pkgs.moltenvk;
 
+          moltenvkSdk = pkgs.runCommand "godot-moltenvk-sdk" { } ''
+            mkdir -p $out/macOS/lib
+
+            # Dynamic MoltenVK library
+            ln -s ${moltenvkDynamic}/lib/libMoltenVK.dylib \
+              $out/macOS/lib/libMoltenVK.dylib
+
+            # Static archive retained for Godot SDK detection
+            SDK="$out/macOS/lib/MoltenVK.xcframework/macos-arm64_x86_64"
             mkdir -p "$SDK"
 
-            ln -s \
-              "${moltenvkStatic}/lib/libMoltenVK.a" \
+            ln -s ${moltenvkStatic}/lib/libMoltenVK.a \
               "$SDK/libMoltenVK.a"
           '';
 
@@ -148,33 +155,36 @@
             ]
           );
 
-          platformEnv =
-            (lib.optionalAttrs isLinux {
-              CC = "${llvm.clang}/bin/clang";
-              CXX = "${llvm.clang}/bin/clang++";
+          platformEnv = {
+            CC = "${llvm.clang}/bin/clang";
+            CXX = "${llvm.clang}/bin/clang++";
+          }
+          // (lib.optionalAttrs isLinux {
 
-              LD_LIBRARY_PATH = linuxLibraryPath;
+            LD_LIBRARY_PATH = linuxLibraryPath;
 
-              VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
-            })
-            // (lib.optionalAttrs isDarwin {
-              # Use the compiler wrapper supplied by the Darwin stdenv.
-              CC = "${pkgs.stdenv.cc}/bin/clang";
-              CXX = "${pkgs.stdenv.cc}/bin/clang++";
+            VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
 
-              DYLD_FALLBACK_LIBRARY_PATH = lib.makeLibraryPath (
-                with pkgs;
-                [
-                  freetype
-                  fontconfig
-                  openssl
-                  zlib
-                  libffi
-                  moltenvk
-                ]
-              );
-              VULKAN_SDK_PATH = "${moltenvkSdk}";
-            });
+            NIX_LDFLAGS = "-L${pkgs.zlib}/lib";
+            NIX_CFLAGS_COMPILE = "-I${pkgs.zlib.dev}/include";
+          })
+          // (lib.optionalAttrs isDarwin {
+            MACOSX_DEPLOYMENT_TARGET = "14.0";
+
+            DYLD_FALLBACK_LIBRARY_PATH = lib.makeLibraryPath (
+              with pkgs;
+              [
+                freetype
+                fontconfig
+                openssl
+                zlib
+                libffi
+                moltenvk
+              ]
+            );
+
+            VULKAN_SDK_PATH = "${moltenvkSdk}";
+          });
 
         in
         {
@@ -183,24 +193,6 @@
               name = "godot-development";
 
               packages = platformPackages;
-
-              shellHook = ''
-                export SCCACHE_DIR="$HOME/.cache/sccache"
-                export SCCACHE_CACHE_SIZE="10G"
-
-                echo ""
-                echo "========================================"
-                echo " Godot Development Environment"
-                echo "========================================"
-                echo "System: ${system}"
-                echo "Architecture: ${if isDarwin then "Apple Silicon ARM64" else "Linux x86_64"}"
-                echo "Compiler: $(clang --version | head -n 1)"
-                echo "Python: $(python3 --version)"
-                echo "SCons: $(scons --version | head -n 1)"
-                echo "========================================"
-                echo ""
-                echo "Ready to build Godot!"
-              '';
             }
             // platformEnv
           );

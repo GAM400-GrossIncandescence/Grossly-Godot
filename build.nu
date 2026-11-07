@@ -1,26 +1,19 @@
 #!/usr/bin/env nu
 
 
-def isDarwin [] {
-	return ((uname).kernel-name == "Darwin")
-}
+def isDarwin [] { (uname).kernel-name == "Darwin" }
 
-def isLinux [] {
-	return (not isDarwin);
-}
+def isLinux [] { not isDarwin }
+
+def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
 
 def "main scons" [...args: string ] {
     const launcher = "sccache";
 	const dev_build = "yes";
 
-	let platform = if (isDarwin) {"macos"} else { "linuxbsd" };
-	let arch = if (isDarwin) { "arm64" } else { "x86_64" };
-
-    # let raw_ldflags = $env.NIX_LDFLAGS? | default ""
-
     let base_flags = [
 		# Platform
-        $"platform=($platform)"
+        $"platform=(platform)"
         $"arch=(arch)"
 
 		# Dotnet
@@ -33,28 +26,30 @@ def "main scons" [...args: string ] {
         $"cpp_compiler_launcher=($launcher)"
         $"CC=($env.CC? | default "clang")"
         $"CXX=($env.CXX? | default "clang++")"
-        # $"linkflags=($raw_ldflags)" # Pass directly as a space-separated string block
+        $"linkflags=($env.NIX_LDFLAGS? | default "")"
 
 		# Graphics
 		$"vulkan=yes"
 		$"vulkan_sdk_path=($env.VULKAN_SDK_PATH)"
 		$"dev_build=($dev_build)"
-		$"use_volk=no"
-        "angle=no"
+		$"use_volk=yes"
+        $"angle=no"
 
 		# Optional Dependencies
-        "accesskit=no"
+        $"accesskit=no"
     ]
 
 	print "scons" ($base_flags ++ $args)
 	scons ...$base_flags ...$args
+}
 
-	return
+def "main test" [] {
+	main scons "--help" | grep -iE 'vulkan|use_volk|metal|rendering_device|forward_plus'
 }
 
 
 def "main godot" [...args: string] {
-	./bin/godot.macos.editor.arm64.mono ...$args
+	^($"./bin/godot.(platform).editor.(arch).mono") ...$args
 	return
 }
 
