@@ -9,7 +9,7 @@ def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
 
 def "main scons" [...args: string ] {
     const launcher = "sccache";
-	const dev_build = "yes";
+	const dev_build = "no";
 
     let base_flags = [
 		# Platform
@@ -42,11 +42,6 @@ def "main scons" [...args: string ] {
 	print "scons" ($base_flags ++ $args)
 	scons ...$base_flags ...$args
 }
-
-def "main test" [] {
-	main scons "--help" | grep -iE 'vulkan|use_volk|metal|rendering_device|forward_plus'
-}
-
 
 def "main godot" [...args: string] {
 	^($"./bin/godot.(platform).editor.(arch).mono") ...$args
