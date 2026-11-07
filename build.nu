@@ -1,31 +1,52 @@
 #!/usr/bin/env nu
 
-def "main scons" [...args: string ] {
-    let platform = if (uname | get "kernel-name") == "Darwin" { "macos"} else { "linux" };
-    let custom_compiler = "sccache";
 
-    let nix_cc = $env.CC? | default "clang"
-    let nix_cxx = $env.CXX? | default "clang++"
-    let raw_ldflags = $env.NIX_LDFLAGS? | default ""
+def isDarwin [] {
+	return ((uname).kernel-name == "Darwin")
+}
+
+def isLinux [] {
+	return (not isDarwin);
+}
+
+def "main scons" [...args: string ] {
+    const launcher = "sccache";
+	const dev_build = "yes";
+
+	let platform = if (isDarwin) {"macos"} else { "linuxbsd" };
+	let arch = if (isDarwin) { "arm64" } else { "x86_64" };
+
+    # let raw_ldflags = $env.NIX_LDFLAGS? | default ""
 
     let base_flags = [
+		# Platform
         $"platform=($platform)"
-        "arch=arm64"
+        $"arch=(arch)"
+
+		# Dotnet
         "module_mono_enabled=yes"
-        "use_llvm=yes"
-        "accesskit=no"
-        "angle=no"
-		"vulkan=yes"
-		$"vulkan_sdk_path=($env.VULKAN_SDK)"
-		# "verbose=yes"
-        $"c_compiler_launcher=($custom_compiler)"
-        $"cpp_compiler_launcher=($custom_compiler)"
-        $"CC=($nix_cc)"
-        $"CXX=($nix_cxx)"
-        $"linkflags=($raw_ldflags)" # Pass directly as a space-separated string block
+
+		# Compiler
         $"-j(nproc)"
+        "use_llvm=yes"
+        $"c_compiler_launcher=($launcher)"
+        $"cpp_compiler_launcher=($launcher)"
+        $"CC=($env.CC? | default "clang")"
+        $"CXX=($env.CXX? | default "clang++")"
+        # $"linkflags=($raw_ldflags)" # Pass directly as a space-separated string block
+
+		# Graphics
+		$"vulkan=yes"
+		$"vulkan_sdk_path=($env.VULKAN_SDK_PATH)"
+		$"dev_build=($dev_build)"
+		$"use_volk=no"
+        "angle=no"
+
+		# Optional Dependencies
+        "accesskit=no"
     ]
 
+	print "scons" ($base_flags ++ $args)
 	scons ...$base_flags ...$args
 
 	return
