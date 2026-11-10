@@ -33,24 +33,25 @@
 
           llvm = pkgs.llvmPackages_22;
 
-          moltenvkStatic = pkgs.moltenvk.override {
+          moltenvkStatic = pkgs.moltenvk.overrideAttrs (old: rec {
             enableStatic = true;
-          };
 
-          moltenvkDynamic = pkgs.moltenvk;
+            env = (old.env or { }) // {
+              MACOSX_DEPLOYMENT_TARGET = "11.0";
+            };
+
+            cmakeFlags = (old.cmakeFlags or [ ]) ++ [
+              "-DCMAKE_OSX_DEPLOYMENT_TARGET=${env.MACOSX_DEPLOYMENT_TARGET}"
+            ];
+          });
 
           moltenvkSdk = pkgs.runCommand "godot-moltenvk-sdk" { } ''
-            mkdir -p $out/macOS/lib
-
-            # Dynamic MoltenVK library
-            ln -s ${moltenvkDynamic}/lib/libMoltenVK.dylib \
-              $out/macOS/lib/libMoltenVK.dylib
-
-            # Static archive retained for Godot SDK detection
             SDK="$out/macOS/lib/MoltenVK.xcframework/macos-arm64_x86_64"
+
             mkdir -p "$SDK"
 
-            ln -s ${moltenvkStatic}/lib/libMoltenVK.a \
+            ln -s \
+              "${moltenvkStatic}/lib/libMoltenVK.a" \
               "$SDK/libMoltenVK.a"
           '';
 
@@ -94,6 +95,10 @@
 
             # Vulkan implementation
             moltenvkSdk
+
+            glslang
+            spirv-tools
+            spirv-cross
           ];
 
           linuxPackages = with pkgs; [
@@ -164,12 +169,9 @@
             LD_LIBRARY_PATH = linuxLibraryPath;
 
             VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
-
-            NIX_LDFLAGS = "-L${pkgs.zlib}/lib";
-            NIX_CFLAGS_COMPILE = "-I${pkgs.zlib.dev}/include";
           })
           // (lib.optionalAttrs isDarwin {
-            MACOSX_DEPLOYMENT_TARGET = "14.0";
+            MACOSX_DEPLOYMENT_TARGET = "11.0";
 
             DYLD_FALLBACK_LIBRARY_PATH = lib.makeLibraryPath (
               with pkgs;
@@ -182,6 +184,29 @@
                 moltenvk
               ]
             );
+            # NIX_LDFLAGS = lib.concatStringsSep " " [
+            #   "-L${pkgs.glslang}/lib"
+            #   "-L${pkgs.spirv-tools}/lib"
+            #   "-L${pkgs.spirv-cross}/lib"
+            #
+            #   "-lglslang"
+            #   "-lSPIRV"
+            #   "-lSPIRV-Tools"
+            #   "-lSPIRV-Tools-opt"
+            #
+            #   "-lspirv-cross-msl"
+            #   "-lspirv-cross-core"
+            #   "-lspirv-cross-glsl"
+            #   "-lspirv-cross-reflect"
+            #
+            #   "-framework Metal"
+            #   "-framework Foundation"
+            #   "-framework AppKit"
+            #   "-framework CoreGraphics"
+            #   "-framework IOKit"
+            #   "-framework IOSurface"
+            #   "-framework QuartzCore"
+            # ];
 
             VULKAN_SDK_PATH = "${moltenvkSdk}";
           });

@@ -27,6 +27,7 @@ def "main scons" [...args: string ] {
         $"CC=($env.CC? | default "clang")"
         $"CXX=($env.CXX? | default "clang++")"
         $"linkflags=($env.NIX_LDFLAGS? | default "")"
+		$"compiledb=yes"
 
 		# Graphics
 		$"vulkan=yes"
