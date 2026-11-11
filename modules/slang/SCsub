@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+import subprocess
 from misc.utility.scons_hints import *
 
 Import("env")
@@ -6,3 +8,39 @@ Import("env_modules")
 
 env_slang = env_modules.Clone()
 env_slang.add_source_files(env.modules_sources, "*.cpp")
+
+
+def configure_system_slang(target_env, global_env):
+    if env["platform"] not in ["linuxbsd", "macos"]:
+        return False
+
+    slang_dir = os.environ.get("SLANG_DIR")
+
+    if slang_dir and os.path.exists(slang_dir):
+        inc_path = os.path.join(slang_dir, "include")
+        lib_path = os.path.join(slang_dir, "lib")
+        target_env.Prepend(CPPPATH=[inc_path])
+        global_env.Append(LIBPATH=[lib_path])
+        global_env.Append(LIBS=["slang"])
+        return True
+
+    try:
+        subprocess.check_call(["pkg-config", "--exists", "slang"])
+        target_env.ParseConfig("pkg-config --cflags slang")
+        global_env.ParseConfig("pkg-config --libs slang")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return False
+
+
+if not configure_system_slang(env_slang, env):
+    # Fallback to local thirdparty directory if not installed on system
+    print("System Slang not found; falling back to thirdparty/ directory.")
+    env_slang.Prepend(CPPPATH=["thirdparty/include"])
+    if env["platform"] == "windows":
+        env.Append(LIBS=[File("thirdparty/lib/win64/slang.lib")])
+    else:
+        env.Append(LIBPATH=[Dir("thirdparty/lib/linux64").abspath])
+        env.Append(LIBS=["slang"])

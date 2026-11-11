@@ -75,6 +75,7 @@
             openssl
             zlib
             libffi
+            shader-slang.dev
 
             # Vulkan
             vulkan-headers
@@ -163,6 +164,7 @@
           platformEnv = {
             CC = "${llvm.clang}/bin/clang";
             CXX = "${llvm.clang}/bin/clang++";
+            SLANG_DIR = "${pkgs.shader-slang.dev}";
           }
           // (lib.optionalAttrs isLinux {
 

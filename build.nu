@@ -7,9 +7,10 @@ def isLinux [] { not isDarwin }
 
 def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
 
+def dev_build [] { true }
+
 def "main scons" [...args: string ] {
     const launcher = "sccache";
-	const dev_build = "no";
 
     let base_flags = [
 		# Platform
@@ -31,8 +32,8 @@ def "main scons" [...args: string ] {
 
 		# Graphics
 		$"vulkan=yes"
-		$"vulkan_sdk_path=($env.VULKAN_SDK_PATH)"
-		$"dev_build=($dev_build)"
+		# $"vulkan_sdk_path=($env.VULKAN_SDK_PATH)"
+		$"dev_build=(dev_build)"
 		$"use_volk=yes"
         $"angle=no"
 
@@ -45,11 +46,12 @@ def "main scons" [...args: string ] {
 }
 
 def "main godot" [...args: string] {
-	^($"./bin/godot.(platform).editor.(arch).mono") ...$args
+	^($"./bin/godot.(platform).editor.dev.(arch).mono") ...$args
 	return
 }
 
 def "main generate_mono_glue" [] {
+	print "Generating godot mono glue"
     let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
 
 	print "Generating mono glue . . ."
@@ -66,14 +68,21 @@ def "main editor" [] {
 
 	main scons "target=editor" "tools=yes"
 
-	main generate_mono_glue
-
-	main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
 	return
+}
+
+def "main mac_bundle" [] {
+	if platform == "macos" {
+		main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
+	} else {
+		print "Can only make a macos app bundle when platform=macos"
+	}
 }
 
 def "main full" [] {
 	main editor
+	main generate_mono_glue
+	main mac_bundle
 	main export_templates
 	return
 }
@@ -87,6 +96,6 @@ def "main export_templates" [] {
 
 def main [] {
 	main editor
-	print
-
+	main generate_mono_glue
+	main mac_bundle
 }

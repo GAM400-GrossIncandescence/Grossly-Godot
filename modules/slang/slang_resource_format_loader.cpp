@@ -1,7 +1,10 @@
 #include "slang_resource_format_loader.h"
 
+#include "slang.h"
+
 #include "core/os/memory.h"
 #include "servers/rendering/rendering_device_binds.h"
+
 Ref<Resource> SlangResourceFormatLoader::load(
 		const String &p_path,
 		const String &p_original_path,
