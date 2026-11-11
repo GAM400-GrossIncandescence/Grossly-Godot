@@ -1598,6 +1598,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		} else if (arg == "-e" || arg == "--editor") { // starts editor
 
 			editor = true;
+			auto_build_solutions = true;
 		} else if (arg == "-p" || arg == "--project-manager") { // starts project manager
 			project_manager = true;
 		} else if (arg == "--recovery-mode") { // Enables recovery mode.

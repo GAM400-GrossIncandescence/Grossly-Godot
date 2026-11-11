@@ -72,6 +72,12 @@ def "main editor" [] {
 	return
 }
 
+def "main full" [] {
+	main editor
+	main export_templates
+	return
+}
+
 
 def "main export_templates" [] {
 	main scons "target=template_debug"
