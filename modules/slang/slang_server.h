@@ -8,6 +8,13 @@ namespace slang {
 struct IGlobalSession;
 }
 
+struct ISlangBlob;
+
+namespace Slang {
+template <typename T>
+class ComPtr;
+}
+
 class SlangServer : public Object {
 	GDCLASS(SlangServer, Object);
 
@@ -20,14 +27,13 @@ private:
 public:
 	static SlangServer *get_singleton();
 
-	void create_global_session();
-
-	[[nodiscard]] slang::IGlobalSession *get_global_session() const;
-
-	[[nodiscard]] bool is_available() const;
+#if TOOLS_ENABLED
+	static String blob_to_string(const Slang::ComPtr<ISlangBlob> &blob);
+#endif
 
 	SlangServer();
 
 	~SlangServer();
 };
+
 #endif

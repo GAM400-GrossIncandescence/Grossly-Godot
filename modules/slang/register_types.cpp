@@ -4,11 +4,9 @@
 #include "core/io/resource_importer.h"
 #include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
-#include "core/string/print_string.h"
 
 #include "modules/register_module_types.h"
 #include "modules/slang/slang_server.h"
-#include "modules/slang/slang_spirv.h"
 #include "modules/slang/slang_spirv_resource_importer.h"
 
 static Ref<ResourceImporterSlangSPIRV> format_loader{ nullptr };
@@ -16,7 +14,6 @@ static Ref<ResourceImporterSlangSPIRV> format_loader{ nullptr };
 void initialize_slang_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(SlangServer);
 	GDREGISTER_CLASS(ResourceImporterSlangSPIRV);
-	GDREGISTER_CLASS(SlangSPIRV);
 
 	if (p_level == MODULE_INITIALIZATION_LEVEL_CORE) {
 		format_loader.instantiate();
@@ -31,8 +28,6 @@ void initialize_slang_module(ModuleInitializationLevel p_level) {
 		singleton.editor_only = true;
 
 		Engine::get_singleton()->add_singleton(singleton);
-
-		SlangServer::get_singleton()->create_global_session();
 	}
 }
 

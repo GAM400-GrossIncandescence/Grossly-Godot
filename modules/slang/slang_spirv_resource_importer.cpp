@@ -1,21 +1,23 @@
+#if TOOLS_ENABLED
+#include "slang_spirv_resource_importer.h"
+
 #include "core/error/error_list.h"
 #include "core/error/error_macros.h"
 #include "core/io/file_access.h"
 #include "core/io/resource_importer.h"
 #include "core/io/resource_saver.h"
 #include "core/object/property_info.h"
+#include "core/string/print_string.h"
 #include "core/string/ustring.h"
 #include "core/templates/vector.h"
+#include "servers/rendering/rendering_device_binds.h"
 
 #include "modules/slang/slang_server.h"
-#include "modules/slang/slang_spirv.h"
 
 #include <slang-com-ptr.h>
 #include <slang.h>
 
 #include <array>
-#if TOOLS_ENABLED
-#include "slang_spirv_resource_importer.h"
 
 String ResourceImporterSlangSPIRV::get_importer_name() const {
 	return "slang_shader";
@@ -34,20 +36,17 @@ String ResourceImporterSlangSPIRV::get_save_extension() const {
 }
 
 String ResourceImporterSlangSPIRV::get_resource_type() const {
-	return "RDShaderSPIRV";
+	return RDShaderSPIRV::get_class_static();
 }
 
 float ResourceImporterSlangSPIRV::get_priority() const {
 	return 1.0;
 }
 int ResourceImporterSlangSPIRV::get_import_order() const {
-	return 0;
+	return IMPORT_ORDER_DEFAULT;
 }
 int ResourceImporterSlangSPIRV::get_format_version() const {
 	return 0;
-}
-bool ResourceImporterSlangSPIRV::can_import_threaded() const {
-	return false;
 }
 
 String ResourceImporterSlangSPIRV::get_preset_name(int p_idx) const {
@@ -95,14 +94,14 @@ Error ResourceImporterSlangSPIRV::import(
 
 	String source = FileAccess::get_file_as_string(p_source_file);
 
-	if (source.is_empty()) {
-		return FileAccess::get_open_error();
-	}
+	ERR_FAIL_COND_V(source.is_empty(), FileAccess::get_open_error());
 
 	Ref<RDShaderSPIRV> shader = memnew(RDShaderSPIRV);
 
 	if (type == ShaderType::Compute) {
 		Vector<uint8_t> spirvBytes;
+
+		print_verbose("Compiling slang shader: " + p_source_file);
 
 		Error result = try_compile_slang(
 				p_source_file.utf8(),
@@ -117,79 +116,108 @@ Error ResourceImporterSlangSPIRV::import(
 
 	return ResourceSaver::save(shader, p_save_path + "." + get_save_extension());
 }
+
+namespace {
+static thread_local slang::IGlobalSession *global_session{};
+}
+
 Error ResourceImporterSlangSPIRV::try_compile_slang(
 		CharString p_source_file,
 		CharString p_source,
 		CharString p_entry_point,
 		Vector<uint8_t> &r_spirv) {
-	slang::TargetDesc target{
-		.format = SlangCompileTarget::SLANG_SPIRV
-	};
+	print_verbose("SlangImport: getting global session");
 
-	slang::IGlobalSession *global_session = SlangServer::get_singleton()->get_global_session();
+	if (global_session == nullptr) {
+		SlangGlobalSessionDesc desc{};
+		desc.enableGLSL = false;
+		desc.apiVersion = 0;
+		SlangResult result = slang::createGlobalSession(&desc, &global_session);
+		ERR_FAIL_COND_V(result != SLANG_OK || global_session == nullptr, ERR_UNAVAILABLE);
+	}
 
-	ERR_FAIL_NULL_V(global_session, Error::ERR_FILE_MISSING_DEPENDENCIES);
+	print_verbose("SlangImport: creating session");
 
-	Slang::ComPtr<slang::ISession> session;
-	SlangResult result = global_session->createSession(
-			slang::SessionDesc{
-					.targets = &target,
-					.targetCount = 1,
-			},
-			session.writeRef());
+	Slang::ComPtr<slang::ISession> session{};
+	{
+		slang::TargetDesc target{};
+		target.format = SlangCompileTarget::SLANG_SPIRV;
+		target.profile = global_session->findProfile(SPIRV_PROFILE);
 
-	ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::FAILED, "Failed to get slang global session");
+		slang::SessionDesc session_desc;
+		session_desc.targets = &target;
+		session_desc.targetCount = 1;
 
-	r_spirv.clear();
+		SlangResult result = global_session->createSession(session_desc, session.writeRef());
 
-	Slang::ComPtr<slang::IModule> module_;
-	*module_.writeRef() = session->loadModuleFromSourceString(
-			"compute_shader",
-			p_source_file.ptr(),
-			p_source.ptr());
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::FAILED, "Failed to get slang global session");
+	}
 
-	Slang::ComPtr<slang::IEntryPoint> entry;
+	print_verbose("SlangImport: loading module");
 
-	result = module_->findEntryPointByName(p_entry_point.ptr(), entry.writeRef());
+	Slang::ComPtr<slang::IModule> module_{};
+	{
+		Slang::ComPtr<ISlangBlob> diagnostic{};
+		module_ = session->loadModuleFromSourceString(
+				"compute_shader",
+				p_source_file.ptr(),
+				p_source.ptr(),
+				diagnostic.writeRef());
 
-	ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to find entry point");
+		ERR_FAIL_NULL_V_MSG(module_, ERR_COMPILATION_FAILED, "Failed to load module: " + SlangServer::blob_to_string(diagnostic));
+	}
 
-	std::array<slang::IComponentType *const, 2> components{
-		*module_.readRef(), *entry.readRef()
-	};
+	print_verbose("SlangImport: finding entry point");
+	Slang::ComPtr<slang::IEntryPoint> entry{};
+	{
+		SlangResult result = module_->findEntryPointByName(p_entry_point.ptr(), entry.writeRef());
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to find entry point");
+	}
+
+	print_verbose("SlangImport: creating composite program");
 
 	Slang::ComPtr<slang::IComponentType> program{};
+	{
+		std::array<slang::IComponentType *const, 2> components{
+			*module_.readRef(),
+			*entry.readRef(),
+		};
 
-	result = session->createCompositeComponentType(
-			components.data(),
-			components.size(),
-			program.writeRef());
+		Slang::ComPtr<ISlangBlob> diagnostic{};
+		SlangResult result = session->createCompositeComponentType(
+				components.data(),
+				components.size(),
+				program.writeRef(),
+				diagnostic.writeRef());
 
-	ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to create slang composite components during compilation");
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to create slang composite components during compilation: " + SlangServer::blob_to_string(diagnostic));
+	}
+
+	print_verbose("SlangImport: linking program");
 
 	Slang::ComPtr<slang::IComponentType> linked_program{};
+	{
+		Slang::ComPtr<ISlangBlob> diagnostic{};
+		SlangResult result = program->link(linked_program.writeRef(), diagnostic.writeRef());
 
-	Slang::ComPtr<ISlangBlob> link_error;
-
-	// TODO: [Kishan] error logging
-	result = program->link(linked_program.writeRef(), link_error.writeRef());
-
-	String error{};
-	if (link_error) {
-		error.append_utf8(Span<char>((char *)link_error.get()->getBufferPointer(), link_error.get()->getBufferSize()));
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to link program: " + SlangServer::blob_to_string(diagnostic));
 	}
-	ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to link program: " + error);
 
-	Slang::ComPtr<ISlangBlob> *blob{};
-	result = program->getEntryPointCode(0, 0, blob->writeRef());
+	print_verbose("SlangImport: getting SpirV from shader");
 
-	ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to find entry point in linked slang program");
+	Slang::ComPtr<ISlangBlob> spirv_blob{};
+	{
+		Slang::ComPtr<ISlangBlob> diagnostic{};
+		SlangResult result = program->getEntryPointCode(0, 0, spirv_blob.writeRef(), diagnostic.writeRef());
+
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to find entry point in linked slang program: " + SlangServer::blob_to_string(diagnostic));
+	}
 
 	r_spirv.clear();
-	r_spirv.reserve(blob->get()->getBufferSize());
+	r_spirv.reserve(spirv_blob->getBufferSize());
 
-	for (size_t i = 0; i < blob->get()->getBufferSize(); i++) {
-		r_spirv.push_back(static_cast<const uint8_t *>(blob->get()->getBufferPointer())[i]);
+	for (size_t i = 0; i < spirv_blob->getBufferSize(); i++) {
+		r_spirv.push_back(static_cast<const uint8_t *>(spirv_blob.get()->getBufferPointer())[i]);
 	}
 
 	return Error::OK;

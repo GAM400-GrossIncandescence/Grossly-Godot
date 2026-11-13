@@ -1,14 +1,17 @@
 #pragma once
 
+#if TOOLS_ENABLED
+
 #include "core/error/error_list.h"
 #include "core/io/resource_importer.h"
 #include "core/string/ustring.h"
 #include "core/templates/vector.h"
-
-#if TOOLS_ENABLED
+#include "core/variant/type_info.h"
 
 class ResourceImporterSlangSPIRV final : public ResourceImporter {
 	GDCLASS(ResourceImporterSlangSPIRV, ResourceImporter);
+
+	static constexpr const char *SPIRV_PROFILE = "spirv_1_5";
 
 public:
 	enum class ShaderType {
@@ -33,8 +36,6 @@ public:
 
 	int get_format_version() const override;
 
-	bool can_import_threaded() const override;
-
 	String get_preset_name(int p_idx) const override;
 
 	int get_preset_count() const override;
@@ -55,5 +56,7 @@ public:
 public:
 	static Error try_compile_slang(CharString p_source_file, CharString p_source, CharString p_entry_point, Vector<uint8_t> &r_spirv);
 };
+
+VARIANT_ENUM_CAST(ResourceImporterSlangSPIRV::ShaderType);
 
 #endif
