@@ -5,9 +5,9 @@ def isDarwin [] { (uname).kernel-name == "Darwin" }
 
 def isLinux [] { not isDarwin }
 
-def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
+def platform [] { if (isDarwin) { "macos" } else { "linuxbsd" } }
 
-def dev_build [] { true }
+def dev_build [] { false }
 
 def "main scons" [...args: string ] {
     const launcher = "sccache";
