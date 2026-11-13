@@ -8,6 +8,13 @@
 #include "core/templates/vector.h"
 #include "core/variant/type_info.h"
 
+struct ISlangBlob;
+
+namespace Slang {
+template <typename T>
+class ComPtr;
+}
+
 class ResourceImporterSlangSPIRV final : public ResourceImporter {
 	GDCLASS(ResourceImporterSlangSPIRV, ResourceImporter);
 
@@ -55,6 +62,8 @@ public:
 
 public:
 	static Error try_compile_slang(CharString p_source_file, CharString p_source, CharString p_entry_point, Vector<uint8_t> &r_spirv);
+
+	static String blob_to_string(const Slang::ComPtr<ISlangBlob> &blob);
 };
 
 VARIANT_ENUM_CAST(ResourceImporterSlangSPIRV::ShaderType);

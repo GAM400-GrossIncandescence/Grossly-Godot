@@ -1,4 +1,5 @@
 #if TOOLS_ENABLED
+
 #include "slang_spirv_resource_importer.h"
 
 #include "core/error/error_list.h"
@@ -11,8 +12,6 @@
 #include "core/string/ustring.h"
 #include "core/templates/vector.h"
 #include "servers/rendering/rendering_device_binds.h"
-
-#include "modules/slang/slang_server.h"
 
 #include <slang-com-ptr.h>
 #include <slang.h>
@@ -164,7 +163,7 @@ Error ResourceImporterSlangSPIRV::try_compile_slang(
 				p_source.ptr(),
 				diagnostic.writeRef());
 
-		ERR_FAIL_NULL_V_MSG(module_, ERR_COMPILATION_FAILED, "Failed to load module: " + SlangServer::blob_to_string(diagnostic));
+		ERR_FAIL_NULL_V_MSG(module_, ERR_COMPILATION_FAILED, "Failed to load module: " + blob_to_string(diagnostic));
 	}
 
 	print_verbose("SlangImport: finding entry point");
@@ -190,7 +189,7 @@ Error ResourceImporterSlangSPIRV::try_compile_slang(
 				program.writeRef(),
 				diagnostic.writeRef());
 
-		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to create slang composite components during compilation: " + SlangServer::blob_to_string(diagnostic));
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_COMPILATION_FAILED, "Failed to create slang composite components during compilation: " + blob_to_string(diagnostic));
 	}
 
 	print_verbose("SlangImport: linking program");
@@ -200,7 +199,7 @@ Error ResourceImporterSlangSPIRV::try_compile_slang(
 		Slang::ComPtr<ISlangBlob> diagnostic{};
 		SlangResult result = program->link(linked_program.writeRef(), diagnostic.writeRef());
 
-		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to link program: " + SlangServer::blob_to_string(diagnostic));
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to link program: " + blob_to_string(diagnostic));
 	}
 
 	print_verbose("SlangImport: getting SpirV from shader");
@@ -210,7 +209,7 @@ Error ResourceImporterSlangSPIRV::try_compile_slang(
 		Slang::ComPtr<ISlangBlob> diagnostic{};
 		SlangResult result = program->getEntryPointCode(0, 0, spirv_blob.writeRef(), diagnostic.writeRef());
 
-		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to find entry point in linked slang program: " + SlangServer::blob_to_string(diagnostic));
+		ERR_FAIL_COND_V_MSG(result != SLANG_OK, Error::ERR_LINK_FAILED, "Failed to find entry point in linked slang program: " + blob_to_string(diagnostic));
 	}
 
 	r_spirv.clear();
@@ -221,6 +220,19 @@ Error ResourceImporterSlangSPIRV::try_compile_slang(
 	}
 
 	return Error::OK;
+}
+
+String ResourceImporterSlangSPIRV::blob_to_string(const Slang::ComPtr<ISlangBlob> &blob) {
+	if (blob == nullptr) {
+		return "";
+	}
+
+	const void *buffer{ blob->getBufferPointer() };
+	size_t length{ blob->getBufferSize() / sizeof(char) };
+
+	print_line("Blob: ", blob->getBufferSize());
+
+	return String::ascii(Span<char>(static_cast<const char *>(buffer), length));
 }
 
 #endif
