@@ -1598,6 +1598,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		} else if (arg == "-e" || arg == "--editor") { // starts editor
 
 			editor = true;
+			auto_build_solutions = true;
 		} else if (arg == "-p" || arg == "--project-manager") { // starts project manager
 			project_manager = true;
 		} else if (arg == "--recovery-mode") { // Enables recovery mode.
@@ -5178,16 +5179,17 @@ bool Main::iteration() {
 	OS::get_singleton()->add_frame_delay(DisplayServer::get_singleton()->window_can_draw(), wake_for_events);
 
 #ifdef TOOLS_ENABLED
-	if (editor || auto_build_solutions) {
+	if (auto_build_solutions && !project_manager) {
 		auto_build_solutions = false;
 		// Only relevant when running the editor.
-		if (auto_build_solutions && !editor) {
+
+		if (!editor) {
 			OS::get_singleton()->set_exit_code(EXIT_FAILURE);
 			ERR_FAIL_V_MSG(true,
 					"Command line option --build-solutions was passed, but no project is being edited. Aborting.");
 		}
 
-		if (!EditorNode::get_singleton()->call_build()) {
+		if (!EditorNode::get_singleton()->call_build() && cmdline_tool) {
 			OS::get_singleton()->set_exit_code(EXIT_FAILURE);
 			ERR_FAIL_V_MSG(true,
 					"Command line option --build-solutions was passed, but the build callback failed. Aborting.");
