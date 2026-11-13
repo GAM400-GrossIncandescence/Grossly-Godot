@@ -7,7 +7,7 @@ def isLinux [] { not isDarwin }
 
 def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
 
-def dev_build [] { false }
+def dev_build [] { true }
 
 def "main scons" [...args: string ] {
     const launcher = "sccache";
@@ -46,7 +46,11 @@ def "main scons" [...args: string ] {
 }
 
 def "main godot" [...args: string] {
-	^($"./bin/godot.(platform).editor.(arch).mono") ...$args
+	if (dev_build) {
+		^($"./bin/godot.(platform).editor.dev.(arch).mono") ...$args
+	} else {
+		^($"./bin/godot.(platform).editor.(arch).mono") ...$args
+	}
 	return
 }
 
