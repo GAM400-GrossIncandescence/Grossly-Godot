@@ -1,10 +1,12 @@
 #pragma once
 
-#include "slang.h"
+#if TOOLS_ENABLED
 
 #include "core/object/object.h"
 
-#include <slang-com-ptr.h>
+namespace slang {
+struct IGlobalSession;
+}
 
 class SlangServer : public Object {
 	GDCLASS(SlangServer, Object);
@@ -20,9 +22,12 @@ public:
 
 	void create_global_session();
 
-	slang::IGlobalSession *get_global_session();
+	[[nodiscard]] slang::IGlobalSession *get_global_session() const;
+
+	[[nodiscard]] bool is_available() const;
 
 	SlangServer();
 
 	~SlangServer();
 };
+#endif

@@ -18,7 +18,13 @@ void SlangSPIRV::_bind_methods() {
 			"",
 			"get_source");
 }
+void SlangSPIRV::set_source(String source) {}
+void SlangSPIRV::set_entry_point(String entry_point) {}
 
-const String &SlangSPIRV::get_source() {
+const String &SlangSPIRV::get_entry_point() const {
+	return entry_point;
+}
+
+const String &SlangSPIRV::get_source() const {
 	return source;
 }

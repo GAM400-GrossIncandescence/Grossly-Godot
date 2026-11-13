@@ -7,7 +7,7 @@ def isLinux [] { not isDarwin }
 
 def platform [] { if (isDarwin) {"macos"} else { "linuxbsd" } }
 
-def dev_build [] { true }
+def dev_build [] { false }
 
 def "main scons" [...args: string ] {
     const launcher = "sccache";
@@ -46,7 +46,7 @@ def "main scons" [...args: string ] {
 }
 
 def "main godot" [...args: string] {
-	^($"./bin/godot.(platform).editor.dev.(arch).mono") ...$args
+	^($"./bin/godot.(platform).editor.(arch).mono") ...$args
 	return
 }
 
@@ -72,7 +72,7 @@ def "main editor" [] {
 }
 
 def "main mac_bundle" [] {
-	if platform == "macos" {
+	if (platform) == "macos" {
 		main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
 	} else {
 		print "Can only make a macos app bundle when platform=macos"

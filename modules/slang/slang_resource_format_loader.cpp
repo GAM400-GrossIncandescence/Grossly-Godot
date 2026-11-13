@@ -1,3 +1,5 @@
+#if TOOLS_ENABLED
+
 #include "slang_resource_format_loader.h"
 
 #include "slang.h"
@@ -22,3 +24,5 @@ bool SlangResourceFormatLoader::recognize_path(const String &p_path, const Strin
 bool SlangResourceFormatLoader::handles_type(const String &p_type) const {
 	return p_type == "RDShaderSPIRV";
 }
+
+#endif
