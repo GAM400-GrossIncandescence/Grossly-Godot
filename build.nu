@@ -46,17 +46,28 @@ def "main scons" [...args: string ] {
 }
 
 def "main godot" [...args: string] {
+	mut command = $"./bin/godot.(platform).editor"
+
 	if (dev_build) {
-		^($"./bin/godot.(platform).editor.dev.(arch).mono") ...$args
-	} else {
-		^($"./bin/godot.(platform).editor.(arch).mono") ...$args
+		$command += ".dev"
 	}
+
+	$command += $".(arch)"
+
+	if (platform) != "macos" {
+		$command += ".llvm"
+	}
+
+	$command += ".mono"
+
+	^($command) ...$args
+
 	return
 }
 
 def "main generate_mono_glue" [] {
 	print "Generating godot mono glue"
-    let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
+    let local_package_dir = "../Gross_Incandescence/localnugetsource"
 
 	print "Generating mono glue . . ."
 	main godot "--headless" "--generate-mono-glue" "modules/mono/glue"
