@@ -116,6 +116,7 @@
             # Wayland
             wayland
             wayland-protocols
+            wayland-scanner
             libxkbcommon
 
             # Graphics
