@@ -1,7 +1,7 @@
 short_name = "godot"
 name = "Grossly Godot Engine"
-major = 5
-minor = 1
+major = 4
+minor = 8
 patch = 0
 status = "incandescence"
 module_config = ""
