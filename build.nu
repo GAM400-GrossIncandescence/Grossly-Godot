@@ -1,44 +1,73 @@
 #!/usr/bin/env nu
 
-def "main scons" [...args: string ] {
-    let platform = if (uname | get "kernel-name") == "Darwin" { "macos"} else { "linux" };
-    let custom_compiler = "sccache";
 
-    let nix_cc = $env.CC? | default "clang"
-    let nix_cxx = $env.CXX? | default "clang++"
-    let raw_ldflags = $env.NIX_LDFLAGS? | default ""
+def isDarwin [] { (uname).kernel-name == "Darwin" }
+
+def isLinux [] { not isDarwin }
+
+def platform [] { if (isDarwin) { "macos" } else { "linuxbsd" } }
+
+def dev_build [] { false }
+
+def "main scons" [...args: string ] {
+    const launcher = "sccache";
 
     let base_flags = [
-        $"platform=($platform)"
-        "arch=arm64"
+		# Platform
+        $"platform=(platform)"
+        $"arch=(arch)"
+
+		# Dotnet
         "module_mono_enabled=yes"
-        "use_llvm=yes"
-        "accesskit=no"
-        "angle=no"
-		"vulkan=yes"
-		$"vulkan_sdk_path=($env.VULKAN_SDK)"
-		# "verbose=yes"
-        $"c_compiler_launcher=($custom_compiler)"
-        $"cpp_compiler_launcher=($custom_compiler)"
-        $"CC=($nix_cc)"
-        $"CXX=($nix_cxx)"
-        $"linkflags=($raw_ldflags)" # Pass directly as a space-separated string block
+
+		# Compiler
         $"-j(nproc)"
+        "use_llvm=yes"
+        $"c_compiler_launcher=($launcher)"
+        $"cpp_compiler_launcher=($launcher)"
+        $"CC=($env.CC? | default "clang")"
+        $"CXX=($env.CXX? | default "clang++")"
+        $"linkflags=($env.NIX_LDFLAGS? | default "")"
+		$"compiledb=yes"
+
+		# Graphics
+		$"vulkan=yes"
+		# $"vulkan_sdk_path=($env.VULKAN_SDK_PATH)"
+		$"dev_build=(dev_build)"
+		$"use_volk=yes"
+        $"angle=no"
+
+		# Optional Dependencies
+        $"accesskit=no"
     ]
 
+	print "scons" ($base_flags ++ $args)
 	scons ...$base_flags ...$args
-
-	return
 }
 
-
 def "main godot" [...args: string] {
-	./bin/godot.macos.editor.arm64.mono ...$args
+	mut command = $"./bin/godot.(platform).editor"
+
+	if (dev_build) {
+		$command += ".dev"
+	}
+
+	$command += $".(arch)"
+
+	if (platform) != "macos" {
+		$command += ".llvm"
+	}
+
+	$command += ".mono"
+
+	^($command) ...$args
+
 	return
 }
 
 def "main generate_mono_glue" [] {
-    let local_package_dir = "/Users/bishan_/code/Gross_Incandescence/localnugetsource"
+	print "Generating godot mono glue"
+    let local_package_dir = "../Gross_Incandescence/localnugetsource"
 
 	print "Generating mono glue . . ."
 	main godot "--headless" "--generate-mono-glue" "modules/mono/glue"
@@ -54,9 +83,22 @@ def "main editor" [] {
 
 	main scons "target=editor" "tools=yes"
 
-	main generate_mono_glue
+	return
+}
 
-	main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
+def "main mac_bundle" [] {
+	if (platform) == "macos" {
+		main scons "platform=macos" "arch=arm64" "generate_bundle=yes" "tools=yes"
+	} else {
+		print "Can only make a macos app bundle when platform=macos"
+	}
+}
+
+def "main full" [] {
+	main editor
+	main generate_mono_glue
+	main mac_bundle
+	main export_templates
 	return
 }
 
@@ -69,6 +111,6 @@ def "main export_templates" [] {
 
 def main [] {
 	main editor
-	print
-
+	main generate_mono_glue
+	main mac_bundle
 }
